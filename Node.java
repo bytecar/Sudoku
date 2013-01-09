@@ -1,3 +1,4 @@
+package Sudoku;
 public class Node implements Comparable<Node> {
    
    final int name;

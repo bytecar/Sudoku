@@ -1,3 +1,4 @@
+package Sudoku;
 public class Edge implements Comparable<Edge> {
    
    final Node from, to;
