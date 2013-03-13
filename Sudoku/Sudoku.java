@@ -4,63 +4,40 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
 import java.util.*;
+import java.util.List;
 import java.text.DecimalFormat;
 
 public class Sudoku implements Runnable, ActionListener {
 
     class variable {
-
         int idx;
         HashSet<Integer> domain;
     }
-    // Where final values must be assigned, call the updateVals funtion in the board class to upadte it to GUI
+    // Where final values must be assigned, call the updateVals function in the board class to update it to GUI
     int[][] vals = new int[9][9];
     int[][] boxes = new int[9][9];
     int[][] rows = new int[9][9];
     int[][] cols = new int[9][9];
     Board board = null;
 
-    /// --- DEPTH FIRST SEARCH ---//
+	HashMap<Integer,AdjacencyList> gboxes = new HashMap<Integer,AdjacencyList>();
+    HashMap<Integer,AdjacencyList> grows = new HashMap<Integer,AdjacencyList>();
+    HashMap<Integer,AdjacencyList> gcols = new HashMap<Integer,AdjacencyList>();
     
-    private void DFS() {
-        // Zero out values prior to Running
-        board.Clear();
-        ops = 0;
-        recursions = 0;
-
-        // Recurisively call your code.  Init: Cell 0 (Top Left)
-        boolean success = RecursiveDFS(0);
-
-        // Print evaluation of run
-        Finished(success);
-    }
-
-    // YOU MAY NOT CHANGE INTERFACE DEFINITION
-    private boolean RecursiveDFS(int cell) {
-        recursions += 1;
-        // YOUR CODE GOES HERE
-
-
-        return false;
-    }
-    /// --- AC-3 Constraint Satisfication --- ///
-    /**
-     * Discussion and Comments about AC3:
-     * 
-     */
-    // Useful but not required Data-Structures;
-    HashSet<Integer>[] globalDomains = new HashSet[81];
-    HashSet<Integer>[] neighbors = new HashSet[81];
-    TreeSet<Arc> globalQueue = new TreeSet<Arc>();
-    AdjacencyList adj = new AdjacencyList();
-    
+    HashSet<Integer>[] globalDomains= new HashSet[81];
+    HashSet<Integer>[] neighbors =  new HashSet[81];
+    TreeSet<Arc> globalQueue  = new TreeSet<Arc>();
     ArrayList<variable> globalVar = new ArrayList<variable>();
+    
     Queue<variable> Q = new LinkedList<variable>();
-    Queue<HashMap<Integer,HashSet<Integer>>> allDiffs = new LinkedList<HashMap<Integer,HashSet<Integer>>>();
-
+    Queue<AdjacencyList> allDiffs = new LinkedList<AdjacencyList>();
+    Queue<AdjacencyList> allDiffsMatch = new LinkedList<AdjacencyList>();
+    ArrayList< HashSet<Node>> layers = new ArrayList<HashSet<Node>>();
+    int level1=0;
+    
     private void init_csp(HashSet<Integer>[] Domains, HashSet<Integer>[] neighbors, int[][] vals, Queue<variable> Q) {
 
-        //init Sudoku Domains
+        //init Sudoku Domains, vals for non-editable, 1-9 for editable.
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
 
@@ -119,8 +96,9 @@ public class Sudoku implements Runnable, ActionListener {
         int res = 0;
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
+            	
                 neighbors[i * 9 + j] = new HashSet<Integer>();
-                res = (lookup(rows[i][j]));
+                res = lookup(rows[i][j]);
                 for (int k = 0; k < 9; k++) {
 
                     if (res >= 0) {
@@ -129,17 +107,14 @@ public class Sudoku implements Runnable, ActionListener {
                     neighbors[i * 9 + j].add(rows[i][k]);
                     neighbors[i * 9 + j].add(cols[j][k]);
                 }
-
+                
+                //The subtraction of additional added cells boxes intersection rows and columns.
                 neighbors[i * 9 + j].remove(rows[i][j]);
 
-                Iterator<Integer> itr = neighbors[i * 9 + j].iterator();
-                while (itr.hasNext()) {
-                    int x2 = itr.next();
-                    Arc temp = new Arc(rows[i][j], x2);
-                    globalQueue.add(temp);
-                    temp = new Arc(x2, rows[i][j]);;
-                    globalQueue.add(temp);
-                }
+              
+                   	
+                	addneighbors(i,j);                	
+               
             }
         }
     }
@@ -157,26 +132,7 @@ public class Sudoku implements Runnable, ActionListener {
         }
     }
 
-    void init_globalQ() {
-
-        for (int i = 0; i < 9; i++) {
-            for (int j = 0; j < 9; j++) {
-
-                Iterator<Integer> itr = neighbors[i * 9 + j].iterator();
-                while (itr.hasNext()) {
-                    int x2 = itr.next();
-                    Arc temp = new Arc(rows[i][j], x2);
-                    globalQueue.add(temp);
-                    temp = new Arc(x2, rows[i][j]);;
-                    globalQueue.add(temp);
-                }
-            }
-        }
-
-    }
     //Add Neighbor constraints for a variable for SAC
-
-    
     void addConsSAC(int var) {
 
         Iterator<Integer> itr = neighbors[var].iterator();
@@ -198,24 +154,9 @@ public class Sudoku implements Runnable, ActionListener {
         return -1;
     }
 
-    int init_variable() {
-
-        for (int i = 0; i < 81; i++) {
-
-            variable tmp = new variable();
-            tmp.domain = globalDomains[i];
-            tmp.idx = i;
-
-            globalVar.add(tmp);
-        }
-
-        return 0;
-    }
-
     private int AC3() {
 
         int r, c;
-        //board.Clear();
         while (!globalQueue.isEmpty()) {
 
             Arc binaryConstraint = globalQueue.pollFirst();
@@ -236,51 +177,16 @@ public class Sudoku implements Runnable, ActionListener {
             }
 
             if (revised.isEmpty()) {
-                //board.showMessage("No Solution");
                 return 0;
             } else if ((revised.size() != globalDomains[binaryConstraint.Xi].size())) {
 
                 globalDomains[binaryConstraint.Xi] = revised;
                 
-                
-                
-
-                /*if (revised.size() == 1) {
-                    Iterator<Integer> itr = globalDomains[binaryConstraint.Xi].iterator();
-                    vals[r][c] = itr.next().intValue();
-                    board.writeVals();
-                }*/
-                
                 r = (int) Math.ceil(binaryConstraint.Xi / 9);
                 c = (binaryConstraint.Xi) % 9;
                 addneighbors(r, c);
-
             }
-
-
         }
-
-
-
-        /*
-         * Print domain contents of all (non-singleton) variables
-        for (int i = 0; i < 9; i++) {
-        for (int j = 0; j < 9; j++) {
-        //System.out.print(globalDomains[i*9+j].size()+"\t");
-        System.out.println("a[" + (i * 9 + j) + "]" + "=" + globalDomains[i * 9 + j]);
-        }
-        System.out.println("\n");
-        }
-        System.out.println("\n");
-        System.out.println("\n");
-        
-         */
-
-        // Print evaluation of run
-        //success = true;
-        //Finished(success);
-        //board.updateVals(vals);
-        //board.showMessage("AC3 Done!!");
 
         return 1;
     }
@@ -333,10 +239,23 @@ public class Sudoku implements Runnable, ActionListener {
         HashSet<Integer>[] globalBackup = new HashSet[81];
         globalBackup = (HashSet<Integer>[]) globalDomains.clone();
 
-        init_variable();
-        init_queue(Q);
-
-        init_globalQ();
+        //Init Variables and Queue
+        for (int i = 0; i < 81; i++) {
+            variable tmp = new variable();
+            tmp.domain = globalDomains[i];
+            tmp.idx = i;
+            globalVar.add(tmp);
+            Q.add(tmp);
+        }
+        //init_csp(globalDomains, neighbors, vals, Q);
+        
+        //Init Global queue
+        for (int i = 0; i < 9; i++) {
+            for (int j = 0; j < 9; j++) {
+            	addneighbors(i,j);
+            }
+        }
+        
         TreeSet<Arc> Qbackup = new TreeSet<Arc>();
         Qbackup=(TreeSet<Arc>) globalQueue.clone();
         
@@ -356,51 +275,33 @@ public class Sudoku implements Runnable, ActionListener {
                 vi.add(k);
 
                 globalDomains[var.idx] = vi;
-                //var.domain = vi;
-
                 globalQueue=(TreeSet<Arc>) Qbackup.clone();
+                
                 if (AC3() == 0) {
                     addConsSAC(var.idx);
 
                     p.remove();
-                    //domain.remove(k);
                     globalDomains[var.idx] = domain;
                     globalBackup[var.idx] = domain;
                     var.domain = domain;
 
-                   /* int count = 0;
-                    for (int i = 0; i < 9; i++) {
-                        for (int j = 0; j < 9; j++) {
-                            //System.out.print(globalDomains[i*9+j].size()+"\t");
-                            if (globalDomains[i * 9 + j].size() == 1) {
-                                count++;
-                            }
-                        }
-
-                    }
-                    System.out.println("Resolved: " + count);
-                    System.out.println("\n");
-                     */
                     if (domain.isEmpty()) {
                         return false;
                     }
                 }
 
-                /*  for(int l=0;l<81;l++)   {
-                globalDomains[l]=globalVar.get(l).domain;
-                }*/
                 globalDomains = globalBackup.clone();
             }
 
             globalDomains[var.idx] = domain;
             var.domain = domain;
             globalBackup[var.idx] = domain;
-
-            // }                                    
+            
         }
 
         time.Stop();
         
+        /*
         //Print domain contents of all (non-singleton) variables
         for (int i = 0; i < 9; i++) {
             for (int j = 0; j < 9; j++) {
@@ -411,7 +312,7 @@ public class Sudoku implements Runnable, ActionListener {
         }
         System.out.println("\n");
         System.out.println("\n");
-
+         */
 
         for (int m = 0; m < 9; m++) {
             for (int n = 0; n < 9; n++) {
@@ -423,10 +324,19 @@ public class Sudoku implements Runnable, ActionListener {
         }
 
         board.writeVals();
-               
+            
+        //Clear CSP initialization
+        for(int p1=0;p1<81;p1++){
+        	globalDomains[p1] = null;
+        	neighbors[p1] = null;
+        }
+        globalQueue.clear();
+        globalVar.clear();
+        Q.clear();
+        
+        
        board.showMessage("Time taken: "+time.ElapsedTime());
 
-        //System.out.println("Time taken: "+time.ElapsedTime());
         return true;
     }
 
@@ -449,40 +359,7 @@ public class Sudoku implements Runnable, ActionListener {
         }
     }
 
-    // This is the actual AC-3 Algorithm ( You may change this function )
-    private final boolean AC3(HashSet<Integer>[] Domains) {
-
-
-
-        return true;
-    }
-
-    // This is the Depth First Search.  ( YOU MAY NOT CHANGE THIS INTERFACE )
-    private final boolean AC3_DFS(int cell, HashSet<Integer>[] Domains) {
-        recursions += 1;
-        // YOUR CODE HERE
-        return false;
-    }
-
-    // This is the Revise function defined in the book ( arc-reduce on wiki )
-    // ( You may change this function definition )
-    private final boolean Revise(Arc t, HashSet<Integer>[] Domains) {
-        ops += 1;
-
-
-        return false;
-    }
-
-    // This defines constraints between a set of variables
-    // This is discussed in the book but you may change the interface.
-    private final void allDiff(int[] all) {
-        // YOUR CODE HERE
-    }
-
-    /// ---------- HELPER FUNCTIONS --------- ///
-    /// ----   DO NOT EDIT REST OF FILE   --- ///
-    // Returns true if that move does not invalidate board
-    public final boolean valid(int x, int y, int val) {	// DO NOT EDIT
+    public final boolean valid(int x, int y, int val) {	
         ops += 1;
         if (vals[x][y] == val) {
             return true;
@@ -502,7 +379,7 @@ public class Sudoku implements Runnable, ActionListener {
     // This defines a new data-type Arc which you can use for storing 
     // pairs of cells. We use these in the TreeSet Data-Structure above
     // you can opt to avoid this class or create your own helper class.
-    class Arc implements Comparable<Object> { 	// DO NOT EDIT
+    class Arc implements Comparable<Object> { 	
 
         int Xi, Xj;
 
@@ -529,7 +406,7 @@ public class Sudoku implements Runnable, ActionListener {
     }
 
     // Returns true if move does not invalidate block
-    public final boolean blockContains(int x, int y, int val) {	// DO NOT EDIT
+    public final boolean blockContains(int x, int y, int val) {	
         int block_x = x / 3;
         int block_y = y / 3;
         for (int r = (block_x) * 3; r < (block_x + 1) * 3; r++) {
@@ -543,7 +420,7 @@ public class Sudoku implements Runnable, ActionListener {
     }
 
     // Returns true if move does not invalidate column
-    public final boolean colContains(int c, int val) {	// DO NOT EDIT
+    public final boolean colContains(int c, int val) {	
         for (int r = 0; r < 9; r++) {
             if (vals[r][c] == val) {
                 return true;
@@ -553,7 +430,7 @@ public class Sudoku implements Runnable, ActionListener {
     }
 
     // Returns true if move does not invalidate row
-    public final boolean rowContains(int r, int val) {	// DO NOT EDIT
+    public final boolean rowContains(int r, int val) {	
         for (int c = 0; c < 9; c++) {
             if (vals[r][c] == val) {
                 return true;
@@ -562,17 +439,8 @@ public class Sudoku implements Runnable, ActionListener {
         return false;
     }
 
-    public int init_queue(Queue<variable> Q) {
-
-        for (int i = 0; i < 81; i++) {
-            Q.add(globalVar.get(i));
-        }
-
-        return 0;
-    }
-
-    // Returns success if int[][] vals contains a valid solution to Sudoku
-    private void CheckSolution() { 	// DO NOT EDIT
+        // Returns success if int[][] vals contains a valid solution to Sudoku
+    private void CheckSolution() { 	
         // If played by hand, need to grab vals
         board.updateVals(vals);
 
@@ -615,17 +483,17 @@ public class Sudoku implements Runnable, ActionListener {
 
     /// ---------- GUI + APP Code --------- ////
     /// ----   DO NOT EDIT REST OF FILE --- ////
-    enum algorithm { 	// DO NOT EDIT
+    enum algorithm { 	
 
-        RESYN, SAC
+        RESYN, SAC	
     }
 
-    enum difficulty { 	// DO NOT EDIT
+    enum difficulty { 	
 
-        SAC1, SAC2, AC1, AC2, random
+        SAC1,SAC2,AC1,AC2,GAC1,GAC2,Random
     }
 
-    public static void main(String[] args) {  // DO NOT EDIT
+    public static void main(String[] args) {  
         if (args.length == 0) {
             System.out.println();
             System.out.println("The code can be run with or without a GUI:");
@@ -633,18 +501,18 @@ public class Sudoku implements Runnable, ActionListener {
             System.out.println("\tGUI\t$ java Sudoku <difficulty>");
             System.out.println("\tnoX\t$ java Sudoku <difficulty> <algorithm>");
             System.out.println();
-            System.out.println("difficulty:\teasy, medium, noSolution, hardNoSolution");
+            System.out.println("difficulty:\tAC1,AC2,SAC1,SAC2,GAC1,GAC2,Random");
             System.out.println("algorithm:\tRESYN, SAC");
             System.out.println();
             System.exit(1);
         }
-        if (args.length >= 1) {
-            level = difficulty.valueOf(args[0]);
-        }
-        if (args.length == 2) {
+        //if (args.length >= 1) {
+            level = difficulty.valueOf("AC1");
+        //}
+        /*if (args.length == 2) {
             alg = algorithm.valueOf(args[1]);
             gui = false;
-        }
+        }*/
 
         System.out.println("Difficulty: " + level);
 
@@ -652,40 +520,168 @@ public class Sudoku implements Runnable, ActionListener {
         app.run();
     }
 
+    public Node get(Node v, HashSet<Node> right){
+    	
+ 	   for(Node N:right){
+ 		   if(N.compareTo(v)>=0)
+ 			   return N;
+ 	   }
+ 	   return null;
+    }  
     void buildAlldiffs()    {
-        
+    
+    	/* Build bipartite graphs 
+    	 * for each constraint of difference
+    	 * in total 9(boxes) + 9(columns) + 9(rows)
+    	 * 27 alldiff constraints
+    	 */
+    	//Populate right bipartite with domain
+    	ArrayList<Node> rightSub = new ArrayList<Node>();
+    	for(int i=0;i<10;i++){
+    	Node N = new Node(i);
+    	rightSub.add(i, N);    	
+    	}
+    	
         for(int i=0;i<9;i++)    {
-            HashMap<Integer,HashSet<Integer>> box = new HashMap<Integer,HashSet<Integer>>();
-            HashMap<Integer,HashSet<Integer>> row = new HashMap<Integer,HashSet<Integer>>();
-            HashMap<Integer,HashSet<Integer>> col = new HashMap<Integer,HashSet<Integer>>();
-            
+           
+        	AdjacencyList buildBox= new AdjacencyList();;
+        	AdjacencyList buildRow= new AdjacencyList();;
+        	AdjacencyList buildCol= new AdjacencyList();
+        	
             for(int j=0;j<9;j++)    {
+            	
+            	
+            	Node N1 = new Node(boxes[i][j]+10);
+            	//gboxes.get(i).left.add(N1);
+            	Node N2 = new Node(rows[i][j]+10);
+            	//grows.get(i).left.add(N2);
+            	Node N3 = new Node(cols[i][j]+10);
+            	//gcols.get(i).left.add(N3);
+            	
+                HashSet<Integer> domainBox = (HashSet<Integer>) globalDomains[boxes[i][j]].clone();
                 
-                HashSet<Integer> domainBox = new HashSet<Integer>();
-                domainBox = (HashSet<Integer>) globalDomains[boxes[i][j]].clone();
-                box.put(boxes[i][j],domainBox);
+                for(Integer I:domainBox){
+                	Node N4 = rightSub.get(I);
+                	
+                	if (domainBox.size()==1)	{
+                    	
+                		buildBox.addEdge(N1,N4,0);
+                    	buildBox.addEdge(N4,N1,0);
+                    	
+                    		for(Edge E: buildBox.getAdjacent(N4))	{
+                    		
+                    			if(E.to==N1){
+                    			E.matched=true;
+                        		buildBox.matched.add(E);
+                        		//E.from.matched = true;
+                        		//E.to.matched = true;
+                    			}
+                    		}
+                    		
+                    		
+                	}
+                	else	{
+                	buildBox.addEdge(N1,N4,0);
+                	buildBox.addEdge(N4,N1,0);
+                	}
+                	
+                }                
+                buildBox.left.add(N1);
                 
-                HashSet<Integer> domainRow = new HashSet<Integer>();
-                domainRow = (HashSet<Integer>) globalDomains[rows[i][j]].clone();
-                row.put(rows[i][j],domainRow);
+                HashSet<Integer> domainRow = (HashSet<Integer>) globalDomains[rows[i][j]].clone();
+               
+                for(Integer I:domainRow){
+                	Node N5 = rightSub.get(I);
+                	
+                	if (domainRow.size()==1)	{                    	
+                		buildRow.addEdge(N2,N5,0);
+                    	buildRow.addEdge(N5,N2,0);
+                    	
+                		 for(Edge E:buildRow.getAdjacent(N5))	{	
+                		 
+                			 if(E.to == N2)	{
+                				 E.matched = true;
+                    		buildRow.matched.add(E);
+                    		//E.from.matched = true;
+                    		//E.to.matched = true;
+                			 }
+                		 }
+                    		                    	
+                	}
+                    	else	{	
+                    		buildRow.addEdge(N2,N5,0);
+                    		buildRow.addEdge(N5,N2,0);
+                    	}
+                	}
+                	
+                                
+                buildRow.left.add(N2);
+     
                 
-                HashSet<Integer> domainCol = new HashSet<Integer>();
-                domainCol = (HashSet<Integer>) globalDomains[cols[i][j]].clone();
-                col.put(cols[i][j],domainCol);
+                HashSet<Integer> domainCol = (HashSet<Integer>) globalDomains[cols[i][j]].clone();
+               
+                for(Integer I:domainCol){
+                	Node N6 = rightSub.get(I);
+                	
+                	
+                	if (domainBox.size()==1)	{
+                    
+                		buildCol.addEdge(N3,N6,0);
+                    	buildCol.addEdge(N6,N3,0);
+                    	
+                    		for(Edge E: buildCol.getAdjacent(N6))	{
+                    		
+                    			if(E.to == N3){
+                    			E.matched=true;
+                        		buildCol.matched.add(E);
+                        		//E.from.matched = true;
+                        		//E.to.matched = true;
+                    			}
+                    		}
+                    		                    		                    		
+                        	                    	
+                	}
+                    	else{
+                    	buildCol.addEdge(N3,N6,0);
+                    	buildCol.addEdge(N6,N3,0);
+                    	}
+                	
+                }                
+                buildCol.left.add(N3);
                 
-                
+                for(Edge E:buildBox.getAllEdges())	{
+                	E.used=false;
+                }
+                for(Edge E:buildRow.getAllEdges())	{
+                	E.used=false;
+                }
+                for(Edge E:buildCol.getAllEdges())	{
+                	E.used=false;
+                }
             }
-            allDiffs.add(box);
-            allDiffs.add(row);
-            allDiffs.add(col);
+            
+            buildBox.right = (ArrayList<Node>) rightSub.clone();
+            buildRow.right = (ArrayList<Node>) rightSub.clone();
+            buildCol.right = (ArrayList<Node>) rightSub.clone();
+            
+            allDiffs.add(buildBox);
+            allDiffs.add(buildRow);
+            allDiffs.add(buildCol);
+            
+            gboxes.put(i, buildBox);
+            grows.put(i, buildRow);
+            gcols.put(i, buildCol);
+            
+            buildBox = null;
+            buildRow = null;
+            buildCol = null;
         }
         
     }
     
     //for Tarjan SCC
-    void buildAdjacencies(HashMap<Integer, HashSet<Integer>> valueGraph)	{
-    	
-    	
+  /*  void buildAdjacencies(HashMap<Integer, HashSet<Integer>> valueGraph)	{
+    	    	
     	for(Iterator<Integer> it = valueGraph.keySet().iterator(); it.hasNext();) {
     	    Integer key = it.next();
     	    HashSet<Integer> value = valueGraph.get(key);
@@ -699,130 +695,74 @@ public class Sudoku implements Runnable, ActionListener {
     	    	
     	
     }
+    */
+boolean checkFreeVertex(HashSet<Node> layer)	{
+		
+		for(Node N:layer){
+			if(!N.matched)
+				return true;
+		}
+		
+		return false;
+	}
 
+    public ArrayList<HashSet<Node>> bfs_layer(AdjacencyList graph){
+    		
     
-    public void removeEdgesFromG(HashMap<Integer, HashSet<Integer>> valueGraph, int[] matching)  {
+    		return layers;
+    	}
+    
+    public void RemoveEdgesFromG(AdjacencyList valueGraph, ArrayList<ArrayList<Edge>> matching)  {
         
-        Node zero = new Node(0);
-        int[] vital=null;
         
-        HashMap<Integer, HashSet<Integer>> edgeset = new HashMap<Integer, HashSet<Integer>>();
-        buildAdjacencies(valueGraph);
-        ArrayList<ArrayList<Node>> ssc;
-                
-         for(int v=0;v<9;v++)    {
-            for(int u:valueGraph.get(v))   {
-                if(matching[u]==999)  {
-                }
-                else    {
-                    if(matching[u]!=v)   {
-                        HashSet<Integer> tmp= edgeset.get(v);
-                        tmp.add(matching[u]);
-                        edgeset.put(v,tmp);
-                    }
-                }
-            }
-        }
-                 
-         Tarjan connectedComponents = new Tarjan();
-         ssc=connectedComponents.tarjan(zero,adj);
-         
-         
-        
+                  
     }
+        
+    
     
     public boolean RESYN() {
         
     	init_csp(globalDomains, neighbors, vals, Q);
         buildAlldiffs();
        
-        HashMap<Integer,HashSet<Integer>> allDiff;
-        HashMap<Node,HashSet<Edge>> valueg = new HashMap<Node,HashSet<Edge>>();
-        HashMap<Node,ArrayList<Node>> alledges = new HashMap<Node,ArrayList<Node>>();
-        
-        //Build G' for Hopcroft
-        Node source = new Node(-99999);
-    	Node sink = new Node(99999);
-	    
-        HashSet<Edge> sourceEdges = new HashSet<Edge>();
-        HashSet<Edge> sinkEdges = new HashSet<Edge>();
-        ArrayList<Node> forallsource = new ArrayList<Node>();
-        ArrayList<Node> forallsink = new ArrayList<Node>();
-        ArrayList<Node> match;
-        
+        ArrayList<ArrayList<Edge>> match;
+        AdjacencyList graph;
         while(!allDiffs.isEmpty())  {
                    
-            allDiff = allDiffs.poll();        
-                             
-            for(Iterator<Integer> it = allDiff.keySet().iterator(); it.hasNext();) {
-            	
-            	HashSet<Edge> edges = new HashSet<Edge>();
-            	
-            	Integer key = it.next();
-        	    HashSet<Integer> value = allDiff.get(key);
-        	    Node start = new Node(key);
-        	    
-        	    //Source-L
-        	    Edge esource = new Edge(source,start,0);
-        	    sourceEdges.add(esource);
-        	    forallsource.add(start);
-        	    
-        	    ArrayList<Node> foralledges = new ArrayList<Node>(); 
-        	    for(Integer i : value) {
-        	    	        	    	
-        	    	Node dest = new Node(i);
-        	    	Edge edg = new Edge(start,dest,0);
-        	    	edges.add(edg);
-        	    	
-        	    	//alledges
-        	    	foralledges.add(dest);
-        	    	
-        	    	//R-Sink
-        	    	Edge esink = new Edge(dest,sink,0);
-            	    sinkEdges.add(esink);
-            	    forallsink.add(dest);
-            	    
-            	    
-        	    }
-        	    
-        	    //alledges
-        	    alledges.put(start,foralledges);
-        	    
-        	    valueg.put(start, edges);
-        	    edges.clear();
-        	    foralledges.clear();
-        	}
-            valueg.put(source, sourceEdges);
-            valueg.put(sink, sinkEdges);
-            alledges.put(source, forallsource);
-            alledges.put(sink, forallsink);
-            
-            //End building G'
-            
-            //Assignments and Call Hopcroft            
-            Hopcroft matching = new Hopcroft();
-            matching.List = alledges;
-            matching.source = source;
-            matching.sink=sink;
-            match = matching.Matching();
-            
-                                    
-            //removeEdgesFromG(match.bipartiteGraph,matched);
-            
+           graph = allDiffs.poll();        
+           matching m1 = new matching();
+           m1.matching_size = graph.left.size();
+           m1.bipartiteGraph = graph;
+           m1.matching.add(graph.matched);
+           
+           for(Edge E:m1.bipartiteGraph.getAllEdges())	{
+        	   E.from.matched=false;
+        	   E.to.matched = false;
+        	   E.matched = false;
+           }
+           for(Edge E:graph.matched){
+        	   E.from.matched=true;
+        	   E.to.matched = true;
+        	   E.matched=true;
+           }
+           
+           m1.maxmatching();
+           match = m1.matching;
+           if(match.size()<m1.matching_size)	{
+        	   return false;
+           }          
+           RemoveEdgesFromG(graph,match);
         }
     return true;
     }
 
-    public void run() { 	// DO NOT EDIT
+    public void run() { 	
         board = new Board(gui, this);
         while (!initialize());
         if (gui) {
             board.initVals(vals);
-            //this.init_csp(globalDomains, neighbors, vals);
         } else {
-            //board.writeVals();
-            this.init_csp(globalDomains, neighbors, vals, Q);
-            System.out.println("Algorithm: " + alg);
+            //System.out.println("Algorithm: " + alg);
             switch (alg) {
                 default:
                 case RESYN:
@@ -838,7 +778,7 @@ public class Sudoku implements Runnable, ActionListener {
         }
     }
 
-    public final boolean initialize() { // DO NOT EDIT
+    public final boolean initialize() { 
         switch (level) {
 
             //04-27-2011-123749 , Level 9 Sudoku instance from sudoku.unl.edu (Willem's) database
@@ -892,8 +832,34 @@ public class Sudoku implements Runnable, ActionListener {
                 vals[7] = new int[]{0, 0, 9, 0, 0, 0, 0, 8, 0};
                 vals[8] = new int[]{0, 0, 0, 1, 0, 3, 6, 7, 0};
                 break;
+                
+                //NY Times May 15th 2009, from sudoku.unl.edu
+            case GAC1:
+            	vals[0] = new int[]{0, 0, 0, 0, 0, 0, 0, 8, 7};
+                vals[1] = new int[]{0, 2, 0, 0, 0, 7, 0, 0, 5};
+                vals[2] = new int[]{0, 6, 1, 0, 0, 0, 0, 0, 0};
+                vals[3] = new int[]{0, 0, 0, 0, 0, 9, 0, 0, 4};
+                vals[4] = new int[]{0, 5, 6, 3, 0, 0, 0, 0, 1};
+                vals[5] = new int[]{0, 0, 0, 2, 7, 0, 3, 0, 0};
+                vals[6] = new int[]{0, 3, 0, 0, 0, 5, 0, 0, 0};
+                vals[7] = new int[]{0, 0, 8, 7, 4, 0, 0, 0, 0};
+                vals[8] = new int[]{6, 0, 0, 0, 9, 8, 0, 0, 0};            	            	
+            	break;
+            
+            	//November 6th 2009, Daily Nebraskan Sudoku from sudoku.unl.edu
+            case GAC2:
+            	vals[0] = new int[]{0, 0, 0, 0, 0, 9, 8, 2, 0};
+                vals[1] = new int[]{1, 0, 0, 0, 0, 2, 4, 3, 9};
+                vals[2] = new int[]{0, 0, 0, 8, 3, 0, 0, 0, 1};
+                vals[3] = new int[]{0, 4, 0, 0, 0, 0, 3, 0, 0};
+                vals[4] = new int[]{5, 0, 1, 0, 9, 0, 2, 0, 7};
+                vals[5] = new int[]{0, 0, 3, 0, 0, 0, 0, 8, 0};
+                vals[6] = new int[]{2, 0, 0, 0, 6, 7, 0, 0, 0};
+                vals[7] = new int[]{3, 7, 6, 9, 0, 0, 0, 0, 2};
+                vals[8] = new int[]{0, 1, 9, 2, 0, 0, 0, 0, 0};
+            	break;
 
-            case random:
+            case Random:
             default:
                 ArrayList<Integer> preset = new ArrayList<Integer>();
                 while (preset.size() < numCells) {
@@ -912,20 +878,25 @@ public class Sudoku implements Runnable, ActionListener {
         return true;
     }
 
-    public void actionPerformed(ActionEvent e) {		// DO NOT EDIT
+    public void actionPerformed(ActionEvent e) {		
         String label = ((JButton) e.getSource()).getText();
         if (label.equals("RESYN")) {
+        	board.initVals(vals);
             RESYN();
         } else if (label.equals("SAC")) {
+        	board.initVals(vals);
             SAC();
         } else if (label.equals("Clear")) {
             board.Clear();
-        } else if (label.equals("Check")) {
-            CheckSolution();
+        }else if (label.equals("Check")) {
+        	CheckSolution();
         }
+        else {
+                        
+        }     
     }
 
-    public final boolean assignRandomValue(int x, int y) { // DO NOT EDIT
+    public final boolean assignRandomValue(int x, int y) { 
         ArrayList<Integer> pval = new ArrayList<Integer>(Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8, 9));
 
         while (!pval.isEmpty()) {
@@ -948,7 +919,7 @@ public class Sudoku implements Runnable, ActionListener {
         return false;
     }
 
-    private void Finished(boolean success) {  // DO NOT EDIT
+    private void Finished(boolean success) {  
 
         if (success) {
             board.writeVals();
@@ -958,7 +929,7 @@ public class Sudoku implements Runnable, ActionListener {
         }
     }
 
-    class Board {  // DO NOT EDIT
+    class Board {  
 
         GUI G = null;
         boolean gui = true;
@@ -1019,7 +990,7 @@ public class Sudoku implements Runnable, ActionListener {
     }
     
     
-    class GUI {  // DO NOT EDIT
+    class GUI {  
         // ---- Graphics ---- //
 
     	
@@ -1054,7 +1025,7 @@ public class Sudoku implements Runnable, ActionListener {
                     try {
                         vals[r][c] = Integer.parseInt(cells[r][c].getText());
                     } catch (java.lang.NumberFormatException e) {
-                        showMessage("Invalid Board");
+                        //showMessage("Invalid Board");
                         return;
                     }
                 }
@@ -1069,10 +1040,14 @@ public class Sudoku implements Runnable, ActionListener {
                         cells[r][c].setText("");
                         vals[r][c] = 0;
                     } else {
-                        cells[r][c].setText("" + vals[r][c]);
+                    	cells[r][c].setEditable(true);
+                    	cells[r][c].setBackground(Color.white);
+                        cells[r][c].setText("");
+                        vals[r][c] = 0;
                     }
                 }
-            }
+            }                        
+            
         }
 
         //Write the updated solution in vals to the GUI
@@ -1088,7 +1063,7 @@ public class Sudoku implements Runnable, ActionListener {
             }
         }
                 
-        public GUI(Sudoku s) {
+        public GUI(final Sudoku s) {
 
             mainFrame = new javax.swing.JFrame();
             mainFrame.getContentPane().setLayout(new BorderLayout());
@@ -1122,6 +1097,8 @@ public class Sudoku implements Runnable, ActionListener {
                 blocks[i / 3][j / 3].add(cells[i][j]);
             }
 
+            String[] consistency = {"AC1","AC2", "SAC1","SAC2","GAC1","GAC2", "Random"};
+            
             JPanel buttonPanel = new JPanel(new FlowLayout());
             mainFrame.getContentPane().add(buttonPanel, BorderLayout.SOUTH);
             JButton DFS_Button = new JButton("RESYN");
@@ -1131,11 +1108,31 @@ public class Sudoku implements Runnable, ActionListener {
             JButton Clear_Button = new JButton("Clear");
             Clear_Button.addActionListener(s);
             JButton Check_Button = new JButton("Check");
-            Check_Button.addActionListener(s);
+            Check_Button.addActionListener(s);            
+            final JComboBox<Object> list = new JComboBox<Object>(consistency);
+            list.addActionListener(new ActionListener()	{
+            	 public void actionPerformed(ActionEvent e) {
+            		 JComboBox cb = (JComboBox)e.getSource();
+                     String input = (String)cb.getSelectedItem();
+                     level = difficulty.valueOf(input);
+                     
+                   
+                     board.Clear();
+                     while (!initialize());
+                     board.initVals(vals);
+                     
+            	        //System.out.println("Selected index=" + list.getSelectedIndex()+ " Selected item=" + list.getSelectedItem());
+            	      }
+            });
+            
+            
+       
             buttonPanel.add(DFS_Button);
             buttonPanel.add(SAC_Button);
             buttonPanel.add(Clear_Button);
             buttonPanel.add(Check_Button);
+            buttonPanel.add(list);	
+            
 
             mainFrame.pack();
             mainFrame.setVisible(true);
@@ -1145,7 +1142,7 @@ public class Sudoku implements Runnable, ActionListener {
     Random rand = new Random();
     // ----- Helper ---- //
     static algorithm alg = algorithm.RESYN;
-    static difficulty level = difficulty.AC1;
+    static difficulty level = difficulty.SAC1;
     static boolean gui = true;
     static int ops;
     static int recursions;

@@ -8,7 +8,8 @@ public class Tarjan {
 	   private ArrayList<Node> stack = new ArrayList<Node>();
 	   private ArrayList<ArrayList<Node>> SCC = new ArrayList<ArrayList<Node>>();
 	   
-	  /* The funtion tarjan has to be called for every unvisited node of the graph */
+	  /* The function tarjan has to be called for every unvisited node of the graph */
+	   //adapted from: http://algowiki.net/wiki/index.php?title=Tarjan%27s_algorithm
 	  public ArrayList<ArrayList<Node>> executeTarjan(AdjacencyList graph){
 	       SCC.clear();
 	       index = 0;
@@ -54,5 +55,5 @@ public class Tarjan {
 	       }
 	       return SCC;
 	   }
-
+	   
 }

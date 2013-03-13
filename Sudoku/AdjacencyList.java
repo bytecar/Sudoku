@@ -1,4 +1,5 @@
 package Sudoku;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.ArrayList;
@@ -8,8 +9,14 @@ import java.util.Collection;
 
 public class AdjacencyList {
 
-   private Map<Node, List<Edge>> adjacencies = new HashMap<Node, List<Edge>>();
-
+   Map<Node, List<Edge>> adjacencies = new HashMap<Node, List<Edge>>();
+   
+   HashSet<Node> left = new HashSet<Node>(); //matching purpose
+   ArrayList<Node> right = new ArrayList<Node>(); //matching purpose
+   ArrayList<Edge> matched = new ArrayList<Edge>();
+   
+   //Unmatched edges from left to right, matched edges from left to right.
+   
    public void addEdge(Node source, Node target, int weight){
        List<Edge> list;
        if(!adjacencies.containsKey(source)){
@@ -19,12 +26,20 @@ public class AdjacencyList {
            list = adjacencies.get(source);
        }
        list.add(new Edge(source, target, weight));
-   }
+       
+       }
 
    public List<Edge> getAdjacent(Node source){
        return adjacencies.get(source);
    }
 
+   public void removeEdge(Edge e){
+	   adjacencies.get(e.from).remove(e); 
+   }
+   
+   public void removeVertex(Node N){
+	   adjacencies.remove(N);
+   }
    public void reverseEdge(Edge e){
        adjacencies.get(e.from).remove(e);
        addEdge(e.to, e.from, e.weight);
