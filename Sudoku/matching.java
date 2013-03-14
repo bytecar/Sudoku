@@ -16,18 +16,19 @@ public class matching {
 	
 	AdjacencyList bipartiteGraph = new AdjacencyList();
 	ArrayList<ArrayList<Edge>> matching = new ArrayList<ArrayList<Edge>>();
+	ArrayList<HashSet<Node>> layers = new ArrayList<HashSet<Node>>();
+	ArrayList<HashSet<Edge>> layerEdges = new ArrayList<HashSet<Edge>>();
 	int level;
 	int matching_size;
 		
 	
 	int maxmatching()	{
-				
-		ArrayList<HashSet<Node>> layers = new ArrayList<HashSet<Node>>();
+						
 		ArrayList<ArrayList<Edge>> paths = new ArrayList<ArrayList<Edge>>();
 		
-		layers.clear();
-		paths.clear();
-		matching.clear();
+		//layers.clear();
+		//paths.clear();
+		//matching.clear();
 		level=0;
 		
 		do {
@@ -52,6 +53,7 @@ public class matching {
 			return 0;
 		}
 		
+		
 		//Print Matching
 			/*	for(ArrayList<Edge> N: matching){
 					for(Edge n1: N){
@@ -60,6 +62,10 @@ public class matching {
 					System.out.println();
 				}*/
 		
+				if(matching.size()==matching_size){
+					return 0;
+				}
+				
 		}while(true);	
 		//Assuming Every bipartite matching has a maximum matching size equal to one of its Left counterparts.		
 	}
@@ -94,18 +100,23 @@ public class matching {
 		layers.remove(i);
 		layers.add(i, tmp);
 		
+		HashSet<Edge> edges = new HashSet<Edge>();
 		for(Node N:layers.get(i))	{
 			
 			List<Edge> E = graph.getAdjacent(N);
+			
+			
 			for(Edge e1:E){
 				if(!e1.matched)	{
 					layers.get(i+1).add(e1.to);
 					e1.to.indegree = e1.to.indegree + 1;
 					e1.from.indegree = e1.from.indegree + 1;
+					edges.add(e1);
 				}
 			}			
 		}
 		
+		layerEdges.add(edges);
 		tmp = (HashSet<Node>) layers.get(i+1).clone();
 		
 		boolean status = checkFreeVertex(layers.get(i+1));
@@ -131,17 +142,18 @@ public class matching {
 		}		
 		else	{
 						
-			
+			HashSet<Edge> additionEdges = new HashSet<Edge>();
 			ArrayList<Node> additions = new ArrayList<Node>();
 			for(Node N1:layers.get(i+1))	{
 				for(Edge E1 : graph.getAdjacent(N1))	{
 					if(E1.matched){
 						additions.add(E1.to);
+						additionEdges.add(E1);
 					}
 				}
 			}
 			
-			
+			layerEdges.add(additionEdges);
 			layers.get(i+1).addAll(additions);
 			
 			if(layers.get(i+1).isEmpty())

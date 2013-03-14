@@ -313,16 +313,25 @@ public class Sudoku implements Runnable, ActionListener {
         System.out.println("\n");
         System.out.println("\n");
          */
-
+        int count=0;
         for (int m = 0; m < 9; m++) {
             for (int n = 0; n < 9; n++) {
 
                 Iterator<Integer> itr = globalDomains[m * 9 + n].iterator();
-                vals[m][n] = itr.next().intValue();                 
+                
+                if(globalDomains[m*9+n].size()==1)	{
+                	vals[m][n] = itr.next().intValue();
+                }
+                else
+                	count++;
                 
             }
         }
 
+        if(count>0){
+        	board.showMessage("Error in consistency, Sudoku unsolved!");        	
+        }
+        
         board.writeVals();
             
         //Clear CSP initialization
@@ -558,7 +567,7 @@ public class Sudoku implements Runnable, ActionListener {
             	Node N3 = new Node(cols[i][j]+10);
             	//gcols.get(i).left.add(N3);
             	
-                HashSet<Integer> domainBox = (HashSet<Integer>) globalDomains[boxes[i][j]].clone();
+                HashSet<Integer> domainBox = (HashSet<Integer>) globalDomains[boxes[i][j]];
                 
                 for(Integer I:domainBox){
                 	Node N4 = rightSub.get(I);
@@ -588,7 +597,7 @@ public class Sudoku implements Runnable, ActionListener {
                 }                
                 buildBox.left.add(N1);
                 
-                HashSet<Integer> domainRow = (HashSet<Integer>) globalDomains[rows[i][j]].clone();
+                HashSet<Integer> domainRow = (HashSet<Integer>) globalDomains[rows[i][j]];
                
                 for(Integer I:domainRow){
                 	Node N5 = rightSub.get(I);
@@ -618,7 +627,7 @@ public class Sudoku implements Runnable, ActionListener {
                 buildRow.left.add(N2);
      
                 
-                HashSet<Integer> domainCol = (HashSet<Integer>) globalDomains[cols[i][j]].clone();
+                HashSet<Integer> domainCol = (HashSet<Integer>) globalDomains[cols[i][j]];
                
                 for(Integer I:domainCol){
                 	Node N6 = rightSub.get(I);
@@ -679,23 +688,6 @@ public class Sudoku implements Runnable, ActionListener {
         
     }
     
-    //for Tarjan SCC
-  /*  void buildAdjacencies(HashMap<Integer, HashSet<Integer>> valueGraph)	{
-    	    	
-    	for(Iterator<Integer> it = valueGraph.keySet().iterator(); it.hasNext();) {
-    	    Integer key = it.next();
-    	    HashSet<Integer> value = valueGraph.get(key);
-    	    Node source = new Node(key);
-    	    
-    	    for(Integer i : value) {
-    	    	Node dest = new Node(i);
-    	    	adj.addEdge(source, dest, 0);    	    	
-    	    }
-    	}
-    	    	
-    	
-    }
-    */
 boolean checkFreeVertex(HashSet<Node> layer)	{
 		
 		for(Node N:layer){
@@ -705,17 +697,72 @@ boolean checkFreeVertex(HashSet<Node> layer)	{
 		
 		return false;
 	}
+    
+public void findEdges(AdjacencyList graph,ArrayList<Node> vertices)	{
+	
+	for(Edge E:graph.getAllEdges())	{
+		if(vertices.contains(E.to) && vertices.contains(E.from))	{
+			E.used = true;
+		}
+	}
+	
+}
 
-    public ArrayList<HashSet<Node>> bfs_layer(AdjacencyList graph){
-    		
-    
-    		return layers;
-    	}
-    
-    public void RemoveEdgesFromG(AdjacencyList valueGraph, ArrayList<ArrayList<Edge>> matching)  {
+public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
+	for(ArrayList<Edge> E1:matching){
+		for(Edge E2:E1){
+			if((E2.from==E.from && E2.to==E.to) || (E2.to==E.from && E2.from==E.to)){
+				return true;
+			}
+		}
+	}
+	return false;
+}
+    public HashSet<Edge> RemoveEdgesFromG(AdjacencyList valueGraph, ArrayList<ArrayList<Edge>> matching,ArrayList<HashSet<Edge>> layers,ArrayList<ArrayList<Node>> components)  {
         
+
+    	HashSet<Edge> deletionList = new HashSet<Edge>();
+    	
+        for(HashSet<Edge> T1: layers ){
+        	for(Edge E:T1)	{
+        		E.used=true;
+        	}
+        }
+      
+        for(ArrayList<Node> n1 : components)
+        	findEdges(valueGraph,n1);
+        	
         
-                  
+        for(Edge E:valueGraph.getAllEdges())	{
+        	if(!E.used){
+        		if(matchingExists(E,matching))	{
+        			E.vital=true;
+        		}
+        		else 	{
+        			
+        			deletionList.add(E);
+        		}
+        	}
+        }       
+                     
+        if(!deletionList.isEmpty())	{
+            //valueGraph.getAllEdges().removeAll(deletionList);
+        
+            for(Edge Ex:valueGraph.getAllEdges()){
+            for(Edge E:deletionList){
+            	if((Ex.to == E.to && Ex.from==E.from)||(Ex.from == E.to && Ex.to==E.from)){
+            		if(!E.matched && !E.vital)
+            			//System.out.println(E.to.name-10+"-"+E.from.name+"  Deleted!" );
+            			valueGraph.removeEdge(E);
+            	}
+            }
+        }
+            
+            
+        }
+        
+        return deletionList;
+       
     }
         
     
@@ -725,15 +772,26 @@ boolean checkFreeVertex(HashSet<Node> layer)	{
     	init_csp(globalDomains, neighbors, vals, Q);
         buildAlldiffs();
        
-        ArrayList<ArrayList<Edge>> match;
+        ArrayList<ArrayList<Edge>> match=null;
+        HashSet<Node> left=null;
         AdjacencyList graph;
+        HashSet<Edge> deletionList = new HashSet<Edge>();
+        int r,c;
+        
         while(!allDiffs.isEmpty())  {
                    
-           graph = allDiffs.poll();        
+           graph = allDiffs.poll();                   
+           Tarjan SCC = new Tarjan();
+                      
+           ArrayList<ArrayList<Node>> components = SCC.executeTarjan(graph);
+           System.out.println(components.size());
            matching m1 = new matching();
+           
+           
            m1.matching_size = graph.left.size();
            m1.bipartiteGraph = graph;
            m1.matching.add(graph.matched);
+           left=(HashSet<Node>) m1.bipartiteGraph.left.clone();
            
            for(Edge E:m1.bipartiteGraph.getAllEdges())	{
         	   E.from.matched=false;
@@ -751,8 +809,51 @@ boolean checkFreeVertex(HashSet<Node> layer)	{
            if(match.size()<m1.matching_size)	{
         	   return false;
            }          
-           RemoveEdgesFromG(graph,match);
+           
+           System.out.println("Before "+graph.getAllEdges().size());
+           deletionList = RemoveEdgesFromG(graph,match,m1.layerEdges,components);
+           System.out.println("After "+graph.getAllEdges().size());
+           
+           
+           
+        	for(Node N:left){
+        		HashSet<Integer> domain = new HashSet<Integer>();
+        		System.out.println(N.name-10+" ");
+        		  
+        		r = (int) Math.ceil((N.name-10) / 9);
+                c = (N.name-10) % 9;
+                  
+        		for(Edge E:graph.getAdjacent(N))	{
+        			System.out.print(E.to.name+" ");
+        			domain.add(E.to.name);
+        		}
+        		
+        		globalDomains[r*9+c] = domain;
+        		System.out.println();
+        	}
+
+        	buildAlldiffs();
+        
         }
+        
+        int count=0;
+        
+        for (int m = 0; m < 9; m++) {
+            for (int n = 0; n < 9; n++) {
+                Iterator<Integer> itr = globalDomains[m * 9 + n].iterator();
+                if(globalDomains[m*9+n].size()==1)
+                	vals[m][n] = itr.next().intValue();
+                else
+                	count++;
+            }	
+        }
+        
+        if(count>0){
+        	board.showMessage("Error in consistency, Sudoku unsolved!");        	
+        }
+        
+        board.writeVals();
+        
     return true;
     }
 

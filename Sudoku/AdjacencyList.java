@@ -9,7 +9,7 @@ import java.util.Collection;
 
 public class AdjacencyList {
 
-   Map<Node, List<Edge>> adjacencies = new HashMap<Node, List<Edge>>();
+  public  Map<Node, List<Edge>> adjacencies = new HashMap<Node, List<Edge>>();
    
    HashSet<Node> left = new HashSet<Node>(); //matching purpose
    ArrayList<Node> right = new ArrayList<Node>(); //matching purpose
