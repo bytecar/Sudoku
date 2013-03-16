@@ -105,7 +105,7 @@ public class matching {
 			
 			List<Edge> E = graph.getAdjacent(N);
 			
-			
+			if(E!=null){
 			for(Edge e1:E){
 				if(!e1.matched)	{
 					layers.get(i+1).add(e1.to);
@@ -113,7 +113,8 @@ public class matching {
 					e1.from.indegree = e1.from.indegree + 1;
 					edges.add(e1);
 				}
-			}			
+			}
+			}
 		}
 		
 		layerEdges.add(edges);
@@ -215,7 +216,8 @@ public class matching {
 				}
 				
 			}
-			if(Ebck.matched)	{
+			if(Ebck!=null)	{
+				if(Ebck.matched)
 				layers.get(level).add(Ebck.from);
 			}
 		}

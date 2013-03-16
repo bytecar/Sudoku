@@ -33,6 +33,7 @@ public class Sudoku implements Runnable, ActionListener {
     Queue<AdjacencyList> allDiffs = new LinkedList<AdjacencyList>();
     Queue<AdjacencyList> allDiffsMatch = new LinkedList<AdjacencyList>();
     ArrayList< HashSet<Node>> layers = new ArrayList<HashSet<Node>>();
+    ArrayList<ArrayList<Edge>> matchNew = new ArrayList<ArrayList<Edge>>();
     int level1=0;
     
     private void init_csp(HashSet<Integer>[] Domains, HashSet<Integer>[] neighbors, int[][] vals, Queue<variable> Q) {
@@ -567,7 +568,7 @@ public class Sudoku implements Runnable, ActionListener {
             	Node N3 = new Node(cols[i][j]+10);
             	//gcols.get(i).left.add(N3);
             	
-                HashSet<Integer> domainBox = (HashSet<Integer>) globalDomains[boxes[i][j]];
+                HashSet<Integer> domainBox =  globalDomains[boxes[i][j]];
                 
                 for(Integer I:domainBox){
                 	Node N4 = rightSub.get(I);
@@ -597,7 +598,7 @@ public class Sudoku implements Runnable, ActionListener {
                 }                
                 buildBox.left.add(N1);
                 
-                HashSet<Integer> domainRow = (HashSet<Integer>) globalDomains[rows[i][j]];
+                HashSet<Integer> domainRow = globalDomains[rows[i][j]];
                
                 for(Integer I:domainRow){
                 	Node N5 = rightSub.get(I);
@@ -627,7 +628,7 @@ public class Sudoku implements Runnable, ActionListener {
                 buildRow.left.add(N2);
      
                 
-                HashSet<Integer> domainCol = (HashSet<Integer>) globalDomains[cols[i][j]];
+                HashSet<Integer> domainCol =  globalDomains[cols[i][j]];
                
                 for(Integer I:domainCol){
                 	Node N6 = rightSub.get(I);
@@ -703,6 +704,8 @@ public void findEdges(AdjacencyList graph,ArrayList<Node> vertices)	{
 	for(Edge E:graph.getAllEdges())	{
 		if(vertices.contains(E.to) && vertices.contains(E.from))	{
 			E.used = true;
+			Edge rev=graph.returnReverseEdge(E.to, E.from);
+			rev.used=true;
 		}
 	}
 	
@@ -722,10 +725,15 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
         
 
     	HashSet<Edge> deletionList = new HashSet<Edge>();
+    	HashSet<Edge> revDeletionList = new HashSet<Edge>();
     	
         for(HashSet<Edge> T1: layers ){
         	for(Edge E:T1)	{
         		E.used=true;
+        		/*Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+        		if(rev!=null)
+        			rev.used=true;*/
+        	
         	}
         }
       
@@ -737,61 +745,118 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
         	if(!E.used){
         		if(matchingExists(E,matching))	{
         			E.vital=true;
+        			Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+            		rev.vital=true;
         		}
         		else 	{
         			
         			deletionList.add(E);
+        			valueGraph.removeEdge(E);
+        			Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+            		valueGraph.removeEdge(rev);
         		}
         	}
         }       
                      
-        if(!deletionList.isEmpty())	{
-            //valueGraph.getAllEdges().removeAll(deletionList);
-        
-            for(Edge Ex:valueGraph.getAllEdges()){
+       
+           /* for(Edge Ex:valueGraph.getAllEdges()){
             for(Edge E:deletionList){
             	if((Ex.to == E.to && Ex.from==E.from)||(Ex.from == E.to && Ex.to==E.from)){
-            		if(!E.matched && !E.vital)
+            		if(!E.matched || !E.vital)
             			//System.out.println(E.to.name-10+"-"+E.from.name+"  Deleted!" );
             			valueGraph.removeEdge(E);
+            			//valueGraph.removeReverseEdge(E);
             	}
             }
-        }
+            
+            }*/
             
             
-        }
         
-        return deletionList;
+            
+            for(Edge E:deletionList){
+            	//   System.out.println(E.to.name-10 +" "+E.from.name);
+            	   Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+            	   //System.out.println(rev.from.name-10 +" "+rev.to.name);
+            	   revDeletionList.add(rev);
+               }
+        
+        return revDeletionList;
        
     }
         
-    
-    
-    public boolean RESYN() {
-        
+  
+
+    public boolean RESYN()	{
     	init_csp(globalDomains, neighbors, vals, Q);
         buildAlldiffs();
        
         ArrayList<ArrayList<Edge>> match=null;
         HashSet<Node> left=null;
-        AdjacencyList graph;
-        HashSet<Edge> deletionList = new HashSet<Edge>();
+        AdjacencyList graph = null;
+        HashSet<Edge> deletionList = new HashSet<Edge>();        
         int r,c;
         
         while(!allDiffs.isEmpty())  {
                    
            graph = allDiffs.poll();                   
            Tarjan SCC = new Tarjan();
-                      
+           
+           //Remove all edges and rebuild them based on updated domain values
+           for(Edge E:graph.getAllEdges())	{
+        	   graph.removeEdge(E);
+           }
+           
+           ArrayList<Node> rightSet = new ArrayList<Node>();           
+           for(int i=0;i<10;i++){
+        	   Node n1 = new Node(i);
+        	   rightSet.add(n1);
+           }
+           
+           for(Node N:graph.left){
+        	
+        	   r = (int) Math.ceil((N.name-10) / 9);
+               c = (N.name-10) % 9;
+               for(Node n1:rightSet){
+            	   if(globalDomains[r*9+c].contains(n1.name))	{
+            		   
+            		   if (globalDomains[r*9+c].size()==1)	{
+                           
+            			   graph.addEdge(N, n1, 0);
+                		   graph.addEdge(n1, N, 0);
+                       	
+                       		for(Edge E: graph.getAdjacent(N))	{
+                       		
+                       			if(E.to == n1){
+                       			E.matched=true;
+                           		graph.matched.add(E);
+                           		//E.from.matched = true;
+                           		//E.to.matched = true;
+                       			}
+                       		}
+            		   
+            	   } 
+            		   else	{
+            			   graph.addEdge(N, n1, 0);
+                		   graph.addEdge(n1, N, 0);
+            		   }
+               }               
+           }
+           }           
+           for(Edge E:graph.getAllEdges()){
+        	   E.used=false;
+           }
+          
+           
            ArrayList<ArrayList<Node>> components = SCC.executeTarjan(graph);
-           System.out.println(components.size());
+           //System.out.println(components.size());
            matching m1 = new matching();
            
            
            m1.matching_size = graph.left.size();
            m1.bipartiteGraph = graph;
            m1.matching.add(graph.matched);
-           left=(HashSet<Node>) m1.bipartiteGraph.left.clone();
+           left=(HashSet<Node>) m1.bipartiteGraph.left;
            
            for(Edge E:m1.bipartiteGraph.getAllEdges())	{
         	   E.from.matched=false;
@@ -806,35 +871,99 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
            
            m1.maxmatching();
            match = m1.matching;
-           if(match.size()<m1.matching_size)	{
-        	   return false;
-           }          
+         //  if(match.size()<m1.matching_size)	{
+        //	   return false;
+        //   }          
+           
+
+     /*  	for(Node N:left){
+       	
+       		System.out.println(N.name-10+" ");
+       		  
+       		for(Edge E:graph.getAdjacent(N))	{
+       			System.out.print(E.to.name+" ");
+       	
+       		}
+       		
+       	
+       		System.out.println();
+       	}*/
            
            System.out.println("Before "+graph.getAllEdges().size());
+          /* for(Edge E:graph.getAllEdges()){
+        	 System.out.println(E.to.name+" "+E.from.name);  
+           }*/
            deletionList = RemoveEdgesFromG(graph,match,m1.layerEdges,components);
            System.out.println("After "+graph.getAllEdges().size());
+           /*for(Edge E:graph.getAllEdges()){
+          	 System.out.println(E.to.name+" "+E.from.name);  
+             }*/
+           
+         //  Print Deletion List
+        /*   for(Edge E:deletionList){
+        	//   System.out.println(E.to.name-10 +" "+E.from.name);
+        	   Edge rev=graph.returnReverseEdge(E.to, E.from);
+        	   //System.out.println(rev.from.name-10 +" "+rev.to.name);
+        	   revDeletionList.add(rev);
+           }*/
            
            
-           
-        	for(Node N:left){
+        	for(Node N1:left){
         		HashSet<Integer> domain = new HashSet<Integer>();
-        		System.out.println(N.name-10+" ");
+        		System.out.println(N1.name-10+" ");
         		  
-        		r = (int) Math.ceil((N.name-10) / 9);
-                c = (N.name-10) % 9;
+        		r = (int) Math.ceil((N1.name-10) / 9);
+                c = (N1.name-10) % 9;
                   
-        		for(Edge E:graph.getAdjacent(N))	{
-        			System.out.print(E.to.name+" ");
-        			domain.add(E.to.name);
+        		for(Edge E:graph.getAdjacent(N1))	{
+        				
+        			if(!deletionList.isEmpty() ){
+        				if( !deletionList.contains(E) )
+        					//System.out.print(E.to.name+" ");
+        					domain.add(E.to.name);
+        			
+             		}
+        			else	{
+        				domain.add(E.to.name);
+        			}
         		}
-        		
         		globalDomains[r*9+c] = domain;
-        		System.out.println();
+        		System.out.println("         "+domain.size());
         	}
 
-        	buildAlldiffs();
+    /*    	boolean computeMatching=false;
+        
+        	for(Edge E:deletionList){
+        		if(match.contains(E))	{
+        			match.remove(E);
+        			if(E.vital)
+        				return false;
+        			else	{
+        				computeMatching=true;
+        			}
+        		}
+        		if(!deletionList.isEmpty())
+        			
+        			if(graph.getAllEdges().contains(E))
+        				graph.removeEdge(E);
+        		}
+        	
+        	if(computeMatching){
+        		if(matchingCoveringX(graph,match))	{
+        			return false;
+        		}
+        		else	{
+        			match = matchNew;
+        		}
+        	}
+        	
+        	deletionList = RemoveEdgesFromG(graph,match,m1.layerEdges,components);*/
+           
+        	//if(allDiffs.isEmpty())
+        	   //buildAlldiffs();
         
         }
+        
         
         int count=0;
         
@@ -848,16 +977,50 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
             }	
         }
         
+   
         if(count>0){
-        	board.showMessage("Error in consistency, Sudoku unsolved!");        	
+        	board.showMessage("Error in consistency, Sudoku Unsolved!");        	
         }
         
         board.writeVals();
         
-    return true;
+        return true;
     }
+    
+    private boolean matchingCoveringX(AdjacencyList graph,ArrayList<ArrayList<Edge>> match) {
+		//HashSet<Node> left=new HashSet<Node>();
+    	matching m1 = new matching();
+    	  m1.matching_size = graph.left.size();
+          m1.bipartiteGraph = graph;
+          m1.matching.add(graph.matched);
+          
+          for(ArrayList<Edge> matches:match)	{
+        	  m1.matching.add(matches);
+          }
+          //left=(HashSet<Node>) m1.bipartiteGraph.left;
+          
+          for(Edge E:m1.bipartiteGraph.getAllEdges())	{
+       	   E.from.matched=false;
+       	   E.to.matched = false;
+       	   E.matched = false;
+          }
+          for(Edge E:graph.matched){
+       	   E.from.matched=true;
+       	   E.to.matched = true;
+       	   E.matched=true;
+          }
+          
+          m1.maxmatching();
+          matchNew = m1.matching;
+          
+          if(matchNew.size()==m1.matching_size)	{
+        	  return true;
+          }
+    	
+		return false;
+	}
 
-    public void run() { 	
+	public void run() { 	
         board = new Board(gui, this);
         while (!initialize());
         if (gui) {

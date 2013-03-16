@@ -45,6 +45,28 @@ public class AdjacencyList {
        addEdge(e.to, e.from, e.weight);
    }
 
+   public void removeReverseEdge(Edge e){
+	  
+	   adjacencies.get(e.to).remove(e);
+   }
+   
+   public Edge returnReverseEdge(Node n1, Node n2){
+	   for(Edge E:adjacencies.get(n1))	{
+		   if(E.to == n2){
+			   return E;
+		   }
+	   }
+	   return null;
+   }
+   public Edge findEdge(Node a, Node b)	{
+	   for(Edge E:this.getAllEdges())	{
+		   if(E.from==a && E.to==b){
+			   return E;
+		   }
+	   }
+	return null;
+   }
+	  
    public void reverseGraph(){
        adjacencies = getReversedList().adjacencies;
    }
