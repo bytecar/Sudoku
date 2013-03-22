@@ -15,8 +15,6 @@ public class AdjacencyList {
    ArrayList<Node> right = new ArrayList<Node>(); //matching purpose
    ArrayList<Edge> matched = new ArrayList<Edge>();
    
-   //Unmatched edges from left to right, matched edges from left to right.
-   
    public void addEdge(Node source, Node target, int weight){
        List<Edge> list;
        if(!adjacencies.containsKey(source)){

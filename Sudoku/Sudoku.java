@@ -112,9 +112,7 @@ public class Sudoku implements Runnable, ActionListener {
                 //The subtraction of additional added cells boxes intersection rows and columns.
                 neighbors[i * 9 + j].remove(rows[i][j]);
 
-              
-                   	
-                	addneighbors(i,j);                	
+               	addneighbors(i,j);                	
                
             }
         }
@@ -128,8 +126,8 @@ public class Sudoku implements Runnable, ActionListener {
             int x2 = itr.next();
             Arc temp = new Arc(rows[i][j], x2);
             globalQueue.add(temp);
-            temp = new Arc(x2, rows[i][j]);
-            globalQueue.add(temp);
+            //Arc temp = new Arc(x2, rows[i][j]);
+            //globalQueue.add(temp);
         }
     }
 
@@ -248,7 +246,6 @@ public class Sudoku implements Runnable, ActionListener {
             globalVar.add(tmp);
             Q.add(tmp);
         }
-        //init_csp(globalDomains, neighbors, vals, Q);
         
         //Init Global queue
         for (int i = 0; i < 9; i++) {
@@ -280,7 +277,6 @@ public class Sudoku implements Runnable, ActionListener {
                 
                 if (AC3() == 0) {
                     addConsSAC(var.idx);
-
                     p.remove();
                     globalDomains[var.idx] = domain;
                     globalBackup[var.idx] = domain;
@@ -545,7 +541,7 @@ public class Sudoku implements Runnable, ActionListener {
     	 * in total 9(boxes) + 9(columns) + 9(rows)
     	 * 27 alldiff constraints
     	 */
-    	//Populate right bipartite with domain
+    	//Populate right portion of bipartite with domain
     	ArrayList<Node> rightSub = new ArrayList<Node>();
     	for(int i=0;i<10;i++){
     	Node N = new Node(i);
@@ -746,13 +742,19 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
         		if(matchingExists(E,matching))	{
         			E.vital=true;
         			Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+        			
+        			if(rev!=null)
             		rev.vital=true;
         		}
         		else 	{
         			
         			deletionList.add(E);
+        			
+        			if(E!=null)
         			valueGraph.removeEdge(E);
         			Edge rev=valueGraph.returnReverseEdge(E.to, E.from);
+        			
+        			if(rev!=null)
             		valueGraph.removeEdge(rev);
         		}
         	}
@@ -786,6 +788,48 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
     }
         
   
+void rebuildEdgesWithDomains(AdjacencyList graph)	{
+	
+	int r=0,c=0;
+	
+	//Remove all edges and rebuild them based on updated domain values
+    /*for(Edge E:graph.getAllEdges())	{
+ 	   graph.removeEdge(E);        	   
+    }*/
+    
+	ArrayList<Edge> removalList = new ArrayList<Edge>();
+    HashSet<Node> rightSet = new HashSet<Node>();           
+    for(int i=0;i<10;i++){
+ 	   Node n1 = new Node(i);
+ 	   rightSet.add(n1);
+    }
+    
+    for(Node N:graph.left){
+ 	
+ 	   r = (int) Math.ceil((N.name-10) / 9);
+        c = (N.name-10) % 9;
+        
+     for(Edge E:graph.getAdjacent(N)){
+    	 
+    	   if (!globalDomains[r*9+c].contains(E.to.name))	{
+               removalList.add(E);
+    		   
+ 	   } 
+     }
+    }
+    
+    for(Edge E1:removalList){
+    	
+    	if(E1!=null)
+    	graph.removeEdge(E1);
+
+    }
+    
+    for(Edge E:graph.getAllEdges()){
+ 	   E.used=false;
+    }
+    
+}
 
     public boolean RESYN()	{
     	init_csp(globalDomains, neighbors, vals, Q);
@@ -802,51 +846,7 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
            graph = allDiffs.poll();                   
            Tarjan SCC = new Tarjan();
            
-           //Remove all edges and rebuild them based on updated domain values
-           for(Edge E:graph.getAllEdges())	{
-        	   graph.removeEdge(E);
-           }
-           
-           ArrayList<Node> rightSet = new ArrayList<Node>();           
-           for(int i=0;i<10;i++){
-        	   Node n1 = new Node(i);
-        	   rightSet.add(n1);
-           }
-           
-           for(Node N:graph.left){
-        	
-        	   r = (int) Math.ceil((N.name-10) / 9);
-               c = (N.name-10) % 9;
-               for(Node n1:rightSet){
-            	   if(globalDomains[r*9+c].contains(n1.name))	{
-            		   
-            		   if (globalDomains[r*9+c].size()==1)	{
-                           
-            			   graph.addEdge(N, n1, 0);
-                		   graph.addEdge(n1, N, 0);
-                       	
-                       		for(Edge E: graph.getAdjacent(N))	{
-                       		
-                       			if(E.to == n1){
-                       			E.matched=true;
-                           		graph.matched.add(E);
-                           		//E.from.matched = true;
-                           		//E.to.matched = true;
-                       			}
-                       		}
-            		   
-            	   } 
-            		   else	{
-            			   graph.addEdge(N, n1, 0);
-                		   graph.addEdge(n1, N, 0);
-            		   }
-               }               
-           }
-           }           
-           for(Edge E:graph.getAllEdges()){
-        	   E.used=false;
-           }
-          
+           rebuildEdgesWithDomains(graph);
            
            ArrayList<ArrayList<Node>> components = SCC.executeTarjan(graph);
            //System.out.println(components.size());
@@ -1110,7 +1110,7 @@ public boolean matchingExists(Edge E,ArrayList<ArrayList<Edge>> matching)	{
                 vals[8] = new int[]{6, 0, 0, 0, 9, 8, 0, 0, 0};            	            	
             	break;
             
-            	//November 6th 2009, Daily Nebraskan Sudoku from sudoku.unl.edu
+            	//November 6th 2009, Omaha World Sudoku from sudoku.unl.edu
             case GAC2:
             	vals[0] = new int[]{0, 0, 0, 0, 0, 9, 8, 2, 0};
                 vals[1] = new int[]{1, 0, 0, 0, 0, 2, 4, 3, 9};
