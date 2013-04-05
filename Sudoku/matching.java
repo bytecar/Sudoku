@@ -54,13 +54,13 @@ public class matching {
 		}
 		
 		
-		//Print Matching
+	/*	//Print Matching
 				for(ArrayList<Edge> N: matching){
 					for(Edge n1: N){
 						System.out.print(n1.to.name-10+" "+n1.from.name);
 					}
 					System.out.println();
-				}
+				}*/
 		
 				if(matching.size()==matching_size){
 					return 0;

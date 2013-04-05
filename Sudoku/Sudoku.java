@@ -126,8 +126,8 @@ public class Sudoku implements Runnable, ActionListener {
             int x2 = itr.next();
             Arc temp = new Arc(rows[i][j], x2);
             globalQueue.add(temp);
-            //Arc temp = new Arc(x2, rows[i][j]);
-            //globalQueue.add(temp);
+            temp = new Arc(x2, rows[i][j]);
+            globalQueue.add(temp);
         }
     }
 
@@ -501,19 +501,25 @@ public class Sudoku implements Runnable, ActionListener {
 
     public static void main(String[] args) {  
         if (args.length == 0) {
-            System.out.println();
+            
+        	level = difficulty.valueOf("AC1");
+            Sudoku app = new Sudoku();
+            gui=true;
+            app.run();
+        	
+        	/*System.out.println();
             System.out.println("The code can be run with or without a GUI:");
             System.out.println();
             System.out.println("\tGUI\t$ java Sudoku <difficulty>");
             System.out.println("\tnoX\t$ java Sudoku <difficulty> <algorithm>");
-            System.out.println();
+            System.out.println();*/
             System.out.println("difficulty:\tAC1,AC2,SAC1,SAC2,GAC1,GAC2,Random");
             System.out.println("algorithm:\tRESYN, SAC");
             System.out.println();
-            System.exit(1);
+            //System.exit(1);
         }
         //if (args.length >= 1) {
-            level = difficulty.valueOf("AC1");
+            
         //}
         /*if (args.length == 2) {
             alg = algorithm.valueOf(args[1]);
@@ -522,8 +528,7 @@ public class Sudoku implements Runnable, ActionListener {
 
         System.out.println("Difficulty: " + level);
 
-        Sudoku app = new Sudoku();
-        app.run();
+        
     }
 
     public Node get(Node v, HashSet<Node> right){
@@ -831,6 +836,26 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
     
 }
 
+
+void rebuildDomainsWithEdges(AdjacencyList graph)	{
+	int r,c;
+	
+	for(Node N:graph.left){
+		
+		r = (int) Math.ceil((N.name-10) / 9);
+        c = (N.name-10) % 9;
+        
+        globalDomains[r*9+c].clear();
+		for(Edge E:graph.getAdjacent(N))	{
+			globalDomains[r*9+c].add(E.to.name);
+		}
+		
+	}
+	
+	
+}
+
+
     public boolean RESYN()	{
     	init_csp(globalDomains, neighbors, vals, Q);
         buildAlldiffs();
@@ -839,7 +864,7 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
         HashSet<Node> left=null;
         AdjacencyList graph = null;
         HashSet<Edge> deletionList = new HashSet<Edge>();        
-        int r,c;
+        int r,c,count1=0;
         
         while(!allDiffs.isEmpty())  {
                    
@@ -888,16 +913,21 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
        	
        		System.out.println();
        	}*/
-           
-           System.out.println("Before "+graph.getAllEdges().size());
+           int before=graph.getAllEdges().size(), after;
+           System.out.println("Before "+before);
           /* for(Edge E:graph.getAllEdges()){
         	 System.out.println(E.to.name+" "+E.from.name);  
            }*/
            deletionList = RemoveEdgesFromG(graph,match,m1.layerEdges,components);
-           System.out.println("After "+graph.getAllEdges().size());
+           after=graph.getAllEdges().size();
+           System.out.println("After "+after);
+           
+           
            /*for(Edge E:graph.getAllEdges()){
           	 System.out.println(E.to.name+" "+E.from.name);  
              }*/
+           
+           rebuildDomainsWithEdges(graph);
            
          //  Print Deletion List
         /*   for(Edge E:deletionList){
@@ -959,11 +989,9 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
         	
         	deletionList = RemoveEdgesFromG(graph,match,m1.layerEdges,components);*/
            
-        	//if(allDiffs.isEmpty())
-        	   //buildAlldiffs();
-        
+        	
         }
-        
+         
         
         int count=0;
         
@@ -983,6 +1011,16 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
         }
         
         board.writeVals();
+        
+        //Clear CSP initialization
+        for(int p1=0;p1<81;p1++){
+        	globalDomains[p1] = null;
+        	neighbors[p1] = null;
+        }
+        globalQueue.clear();
+        globalVar.clear();
+        Q.clear();
+        
         
         return true;
     }
@@ -1406,7 +1444,7 @@ void rebuildEdgesWithDomains(AdjacencyList graph)	{
     Random rand = new Random();
     // ----- Helper ---- //
     static algorithm alg = algorithm.RESYN;
-    static difficulty level = difficulty.SAC1;
+    static difficulty level = difficulty.AC1;
     static boolean gui = true;
     static int ops;
     static int recursions;
