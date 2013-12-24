@@ -1,4 +1,4 @@
-package Sudoku;
+package com.vkartik.research.Sudoku;
 
 import java.util.ArrayList;
 import java.util.HashSet;

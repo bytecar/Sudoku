@@ -1,4 +1,4 @@
-package Sudoku;
+package com.vkartik.research.Sudoku;
 
 import javax.swing.*;
 import java.awt.*;

@@ -1,4 +1,4 @@
-package Sudoku;
+package com.vkartik.research.Sudoku;
 
 public class Edge implements Comparable<Edge> {
    
