@@ -6,7 +6,8 @@
 	<packaging>jar</packaging>
 	<version>0.0.5-SNAPSHOT</version>
 	<name>Sudoku</name>
-	<url>http://maven.apache.org</url>
+	<url>https://github.com/bytecar/Sudoku</url>
+
 	<dependencies>
 		<dependency>
 			<groupId>junit</groupId>
@@ -17,5 +18,16 @@
 	</dependencies>
 	<build>
 		<finalName>Sudoku</finalName>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.0</version>
+				<configuration>
+					<source>1.7</source>
+					<target>1.7</target>
+				</configuration>
+			</plugin>
+		</plugins>
 	</build>
 </project>

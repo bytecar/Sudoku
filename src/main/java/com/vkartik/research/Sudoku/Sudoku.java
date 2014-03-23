@@ -7,7 +7,7 @@ import com.vkartik.research.Sudoku.models.Graph;
 import com.vkartik.research.Sudoku.models.Edge;
 import com.vkartik.research.Sudoku.models.Node;
 import com.vkartik.research.Sudoku.utils.timer;
-import com.vkartik.research.Test.Tests.Sudoku.algorithms.matching;
+import com.vkartik.research.Tests.Sudoku.algorithms.matching;
 
 import java.awt.*;
 import java.awt.event.*;

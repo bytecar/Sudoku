@@ -1,4 +1,4 @@
-package com.vkartik.research.Test.Tests;
+package com.vkartik.research.Tests;
 
 import java.util.ArrayList;
 import org.junit.Test;

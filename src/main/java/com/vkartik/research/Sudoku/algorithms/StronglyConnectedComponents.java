@@ -6,6 +6,7 @@ import java.util.List;
 import com.vkartik.research.Sudoku.models.Graph;
 import com.vkartik.research.Sudoku.models.Edge;
 import com.vkartik.research.Sudoku.models.Node;
+
 //TODO:Fix the return output of this class.
 public class StronglyConnectedComponents {
 
@@ -14,7 +15,7 @@ public class StronglyConnectedComponents {
 	private ArrayList<Node> stack = new ArrayList<Node>();
 	private ArrayList<ArrayList<Node>> SCC = new ArrayList<ArrayList<Node>>();
 
-	//TODO: The return output needs to be list of sub-graphs.
+	// TODO: The return output needs to be list of sub-graphs.
 	public StronglyConnectedComponents(Graph g) {
 		this.graph = g;
 	}
@@ -47,14 +48,16 @@ public class StronglyConnectedComponents {
 		v.setLowlink(index);
 		index++;
 		stack.add(0, v);
-		for (Edge e : list.getAdjacent(v)) {
-			Node n = e.getTo();
-			if (n.getIndex() == -1) {
-				tarjan(n, list);
-				v.setLowlink(Math.min(v.getLowlink(), n.getLowlink()));
-			} else if (stack.contains(n)) {
-				v.setLowlink(Math.min(v.getLowlink(), n.getIndex()));
-				;
+		List<Edge> edges = list.getAdjacent(v);
+		if (edges != null) {
+			for (Edge e : edges) {
+				Node n = e.getTo();
+				if (n.getIndex() == -1) {
+					tarjan(n, list);
+					v.setLowlink(Math.min(v.getLowlink(), n.getLowlink()));
+				} else if (stack.contains(n)) {
+					v.setLowlink(Math.min(v.getLowlink(), n.getIndex()));
+				}
 			}
 		}
 		if (v.getLowlink() == v.getIndex()) {
