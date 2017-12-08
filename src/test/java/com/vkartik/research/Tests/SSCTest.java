@@ -1,10 +1,10 @@
 package com.vkartik.research.Tests;
 
 import java.util.ArrayList;
-import org.junit.Test;
 import com.vkartik.research.Sudoku.algorithms.StronglyConnectedComponents;
 import com.vkartik.research.Sudoku.models.Graph;
 import com.vkartik.research.Sudoku.models.Node;
+import org.junit.jupiter.api.Test;
 
 public class SSCTest {
 

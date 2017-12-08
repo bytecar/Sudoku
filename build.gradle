@@ -1,0 +1,10 @@
+group = "net.bytecar"
+version = "0.0.1-SNAPSHOT"
+repositories {
+    mavenCentral()
+}
+apply plugin: 'idea'
+apply plugin: 'java'
+dependencies {
+    testCompile("org.junit.jupiter:junit-jupiter-api:5.0.1")
+}
