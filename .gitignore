@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # CMake
 cmake-build-debug/
 
@@ -23,3 +24,8 @@ com_crashlytics_export_strings.xml
 crashlytics.properties
 crashlytics-build.properties
 fabric.properties
+=======
+/bin
+/target
+/.settings
+>>>>>>> SGAC
